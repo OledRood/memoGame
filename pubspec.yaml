@@ -1,0 +1,32 @@
+name: memo
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.4
+dependencies:
+  flutter:
+    sdk: flutter
+
+  provider: ^6.1.5
+  rxdart: ^0.28.0
+  cupertino_icons: ^1.0.8
+  freezed: ^2.5.7
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+flutter:
+  assets:
+    - assets/P.png
+    - assets/Pattern.png
+    - assets/card_images/
+  fonts:
+    - family: noir-pro-semi-bold-italic
+      fonts:
+        - asset: assets/fonts/noir-pro-semi-bold-italic.ttf
+  uses-material-design: true
+
