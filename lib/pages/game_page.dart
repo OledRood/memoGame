@@ -7,11 +7,14 @@ import 'package:memo/pages/page_background.dart';
 import 'package:memo/pages/result_page.dart';
 import 'package:memo/sources/app_images.dart';
 import 'package:provider/provider.dart';
+import 'package:reorderables/reorderables.dart';
 
 import '../bloc/bloc.dart';
 import '../models/card_class.dart';
 import '../sources/app_colors.dart';
 import '../sources/grid_values.dart';
+
+bool _isEnableReorderableWrap = false;
 
 class GamePage extends StatefulWidget {
   const GamePage({super.key});
@@ -71,7 +74,6 @@ class _GamePageState extends State<GamePage> {
 
   void nextPage() {
     _subscription = _bloc.gameStateSubject.listen((gameState) {
-      print('NextPage gameState -- $gameState');
       if (gameState == GameState.newLevel || gameState == GameState.win) {
         Navigator.push(
           context,
@@ -92,9 +94,14 @@ class _GamePageState extends State<GamePage> {
   }
 }
 
-class _GamePageContent extends StatelessWidget {
+class _GamePageContent extends StatefulWidget {
   const _GamePageContent({super.key});
 
+  @override
+  State<_GamePageContent> createState() => _GamePageContentState();
+}
+
+class _GamePageContentState extends State<_GamePageContent> {
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -106,8 +113,18 @@ class _GamePageContent extends StatelessWidget {
           SizedBox(height: 40),
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: SizedBox(height: 522, width: 348, child: GridViewWidget()),
-          )
+            child: SizedBox(
+                height: 522, width: 348, child: GridViewStreamsWrapped()),
+          ),
+          ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isEnableReorderableWrap = !_isEnableReorderableWrap;
+                });
+              },
+              child: _isEnableReorderableWrap
+                  ? Text('stop')
+                  : Text('Drag and drop'))
         ],
       ),
     );
@@ -163,8 +180,9 @@ class _ProgressBar extends StatelessWidget {
           return LinearProgressIndicator(
             minHeight: 15,
             value: (values[0] - 0.1) / values[1],
-            valueColor:
-                AlwaysStoppedAnimation<Color>(AppColors.progressBarColorValue),
+            valueColor: AlwaysStoppedAnimation<Color>(_isEnableReorderableWrap
+                ? AppColors.progressBarColorValueFreezed
+                : AppColors.progressBarColorValue),
             backgroundColor: AppColors.progressBarColorBackground,
             borderRadius: BorderRadius.circular(110),
           );
@@ -172,9 +190,14 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-class GridViewWidget extends StatelessWidget {
-  const GridViewWidget({super.key});
+class GridViewStreamsWrapped extends StatefulWidget {
+  const GridViewStreamsWrapped({super.key});
 
+  @override
+  State<GridViewStreamsWrapped> createState() => _GridViewStreamsWrappedState();
+}
+
+class _GridViewStreamsWrappedState extends State<GridViewStreamsWrapped> {
   @override
   Widget build(BuildContext context) {
     final Bloc bloc = Provider.of<Bloc>(context, listen: false);
@@ -190,52 +213,77 @@ class GridViewWidget extends StatelessWidget {
                   return SizedBox.shrink();
                 }
                 List<CardClass> listOfCards = snapshot.data!;
-                return GridView.count(
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: listOfGridValues[intGridType].crossAxisCount,
-                  mainAxisSpacing:
-                      listOfGridValues[intGridType].mainAxisSpacing,
-                  crossAxisSpacing:
-                      listOfGridValues[intGridType].crossAxisSpacing,
-                  children: List.generate(
-                      listOfCards.length,
-                      (index) => AnimatedFlipWrapper(
-                          card: listOfCards[index],
-                          imagePadding:
-                              listOfGridValues[intGridType].imagePadding)),
-                );
+                return _ReorderableWrapWidget(
+                    listOfCards: listOfCards, intGridType: intGridType);
               });
         });
   }
 }
 
-List<GridValue> listOfGridValues = [
-  GridValue(
-    crossAxisCount: 2,
-    mainAxisSpacing: 35,
-    crossAxisSpacing: 40,
-    imagePadding: true,
-  ),
-  GridValue(
-    crossAxisCount: 3,
-    mainAxisSpacing: 10,
-    crossAxisSpacing: 10,
-    imagePadding: true,
-  ),
-  GridValue(
-    crossAxisCount: 4,
-    mainAxisSpacing: 10,
-    crossAxisSpacing: 10,
-    imagePadding: false,
-  )
-];
+class _ReorderableWrapWidget extends StatefulWidget {
+  final int intGridType;
+  final List<CardClass> listOfCards;
+
+  const _ReorderableWrapWidget(
+      {super.key, required this.listOfCards, required this.intGridType});
+
+  @override
+  State<_ReorderableWrapWidget> createState() => _ReorderableWrapWidgetState();
+}
+
+class _ReorderableWrapWidgetState extends State<_ReorderableWrapWidget> {
+
+  @override
+  Widget build(BuildContext context) {
+    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
+    return ReorderableWrap(
+        enableReorder: _isEnableReorderableWrap,
+        scrollPhysics: const NeverScrollableScrollPhysics(),
+        spacing: _listOfGridValues[widget.intGridType].crossAxisSpacing,
+        runSpacing: _listOfGridValues[widget.intGridType].mainAxisSpacing,
+        children: List.generate(widget.listOfCards.length, (index) {
+          return AnimatedFlipWrapper(
+              key: ValueKey<String>(widget.listOfCards[index].id),
+              card: widget.listOfCards[index],
+              cardSize: _listOfGridValues[widget.intGridType].cardSize,
+              imagePadding: _listOfGridValues[widget.intGridType].imagePadding);
+        }),
+        onReorder: ((oldIndex, newIndex) {
+          final item = widget.listOfCards.removeAt(oldIndex);
+          widget.listOfCards.insert(newIndex, item);
+          bloc.gameFieldSubject.add(widget.listOfCards);
+        }));
+  }
+
+  List<GridValue> _listOfGridValues = [
+    GridValue(
+      cardSize: Size(120, 120),
+      mainAxisSpacing: 35,
+      crossAxisSpacing: 40,
+      imagePadding: true,
+    ),
+    GridValue(
+      cardSize: Size(90, 90),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      imagePadding: true,
+    ),
+    GridValue(
+      cardSize: Size(65, 65),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      imagePadding: false,
+    )
+  ];
+}
 
 class AnimatedFlipWrapper extends StatefulWidget {
   final CardClass card;
   final bool imagePadding;
+  final Size cardSize;
 
   const AnimatedFlipWrapper(
-      {super.key, required this.card, required this.imagePadding});
+      {super.key, required this.card, required this.imagePadding, required this.cardSize});
 
   @override
   State<AnimatedFlipWrapper> createState() => _AnimatedFlipWrapperState();
@@ -245,60 +293,53 @@ class _AnimatedFlipWrapperState extends State<AnimatedFlipWrapper> {
   @override
   Widget build(BuildContext context) {
     final Bloc bloc = Provider.of<Bloc>(context, listen: false);
+    final CardClass card = widget.card;
 
-    CardClass card = widget.card;
-    return StreamBuilder<bool>(
-        stream: bloc.isWaitingSubject,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data == null) {
-            return SizedBox.shrink();
-          }
-          bool isWaiting = snapshot.data!;
-          return AnimatedFlip(
-            front: FrontWidget(imagePadding: widget.imagePadding),
-            back: Container(
-              height: 154,
-              width: 154,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(width: 4, color: Colors.white),
-                  borderRadius: BorderRadius.circular(15)),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(13),
-                child: Image.asset(
-                  card.content,
+    return AnimatedFlip(
+      cardBack: Container(
+        height: widget.cardSize.height,
+        width: widget.cardSize.width,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            color: Colors.transparent,
+            border: Border.all(width: 4, color: Colors.white),
+            borderRadius: BorderRadius.circular(15)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(11),
+          child: Image.asset(
+            card.content,
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+      cardFace:
+          FaceCardWidget(size: widget.cardSize, imagePadding: widget.imagePadding),
+      isFace: (card.isFace || _isEnableReorderableWrap),
+      onTap: () async {
+        if (!card.isGuessed && !card.isFace) {
 
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            isFront: card.isFront,
-            onTap: () {
-              setState(() {
-                if (!card.isGuessed && !isWaiting) {
-                  if (!card.isFront) {
-                    bloc.playerSelectedCardSubject.add(card);
-                  }
-                }
-              });
-            },
-          );
-        });
+          addToBloc(bloc: bloc);
+        }
+      },
+    );
+  }
+
+  void addToBloc({required Bloc bloc}) async {
+    bloc.playerSelectedCardSubject.add(widget.card.flipCard());
   }
 }
 
 class AnimatedFlip extends StatelessWidget {
-  final Widget front;
-  final Widget back;
+  final Widget cardBack;
+  final Widget cardFace;
   final VoidCallback onTap;
-  final bool isFront;
+  final bool isFace;
 
   const AnimatedFlip({
-    required this.front,
-    required this.back,
+    required this.cardBack,
+    required this.cardFace,
     required this.onTap,
-    required this.isFront,
+    required this.isFace,
     super.key,
   });
 
@@ -309,10 +350,12 @@ class AnimatedFlip extends StatelessWidget {
       child: TweenAnimationBuilder(
         duration: const Duration(milliseconds: 700),
         curve: Curves.easeOut,
-        tween: Tween<double>(begin: 0, end: isFront ? 180 : 0),
+        tween: Tween<double>(
+            begin: _isEnableReorderableWrap ? 0 : 180, end: isFace ? 0 : 180),
         builder: (context, value, child) {
-          final content =
-              value < 90 ? front : RotationY(rotationY: 180, child: back);
+          final content = value < 90
+              ? cardBack
+              : RotationY(rotationY: 180, child: cardFace);
 
           return RotationY(rotationY: value, child: content);
         },
@@ -321,43 +364,44 @@ class AnimatedFlip extends StatelessWidget {
   }
 }
 
-class FrontWidget extends StatelessWidget {
+class FaceCardWidget extends StatelessWidget {
+  final Size size;
   final bool imagePadding;
 
-  const FrontWidget({super.key, required this.imagePadding});
+  const FaceCardWidget(
+      {super.key, required this.imagePadding, required this.size});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 154,
-      width: 154,
-      padding: imagePadding ? EdgeInsets.all(34) : EdgeInsets.all(20),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: AppColors.cardReverseSide,
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          border: Border.all(width: 4, color: Colors.white),
-          borderRadius: BorderRadius.circular(15)),
-      child: Opacity(
-        opacity: 0.8,
-        child: ShaderMask(
-          blendMode: BlendMode.srcIn,
-          shaderCallback: (Rect bounds) {
-            return LinearGradient(
-              colors: AppColors.colorPImage,
+        height: size.height,
+        width: size.width,
+        padding: imagePadding ? EdgeInsets.all(34) : EdgeInsets.all(20),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: AppColors.cardReverseSide,
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-            ).createShader(bounds);
-          },
-          child: Image.asset(
-            AppImages.p,
+            ),
+            border: Border.all(width: 4, color: Colors.white),
+            borderRadius: BorderRadius.circular(15)),
+        child: Opacity(
+          opacity: 0.8,
+          child: ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (Rect bounds) {
+              return LinearGradient(
+                colors: AppColors.colorPImage,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ).createShader(bounds);
+            },
+            child: Image.asset(
+              AppImages.p,
+            ),
           ),
-        ),
-      )
-    );
+        ));
   }
 }
 

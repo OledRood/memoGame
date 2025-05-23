@@ -1,11 +1,13 @@
+import 'dart:ui';
+
 class GridValue {
-  final int crossAxisCount;
+  final Size cardSize;
   final double mainAxisSpacing;
   final double crossAxisSpacing;
   final bool imagePadding;
 
   GridValue(
-      {required this.crossAxisCount,
+      {required this.cardSize,
       required this.mainAxisSpacing,
       required this.crossAxisSpacing,
       required this.imagePadding,

@@ -19,6 +19,7 @@ class AppColors {
 
   // ========== GamePage ==========
   static const Color progressBarColorValue = Color(0xff9AF09E);
+  static const Color progressBarColorValueFreezed = Color(0xffA59CF0);
   static  Color progressBarColorBackground = Colors.white.withOpacity(0.2);
   static  Color levelContainerColorBackground = Color(0xff8273E9);
   static const List<Color> cardReverseSide = [
