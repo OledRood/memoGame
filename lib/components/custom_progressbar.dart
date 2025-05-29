@@ -10,7 +10,7 @@ class CustomProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
+    final Blocc bloc = Provider.of<Blocc>(context, listen: false);
     return StreamBuilder<List<double>>(
         stream: bloc.progressBarStateListSubject,
         builder: (context, snapshot) {

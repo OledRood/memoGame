@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:memo/pages/game_page.dart';
-import 'package:memo/pages/page_background.dart';
-import 'package:provider/provider.dart';
 
-import '../bloc/bloc.dart';
+import '../bloc/main_bloc.dart';
+import '../enums/page_type.dart';
 import '../sources/app_colors.dart';
 import '../sources/app_images.dart';
 
@@ -14,7 +14,7 @@ class StartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: PageBackground(child: SafeArea(child: _StartPageContent())),
+      body: SafeArea(child: _StartPageContent()),
     );
   }
 }
@@ -73,25 +73,16 @@ class ButtonContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-    return StreamBuilder<GameState>(
-        stream: bloc.gameStateSubject,
-        initialData: bloc.gameStateSubject.value,
-        builder: (context, snapshot) {
-          if (snapshot.data == null|| !snapshot.hasData) {
-            return SizedBox.shrink();
-          }
-          final currentGameState = snapshot.data!;
+    return BlocBuilder<MainBloc, MainState>(
+        builder: (context, state) {
+          final PageType currentPageType = state.pageType;
           late String buttonText;
-          late GameState nextGameState;
-          if (currentGameState == GameState.pause) {
-            nextGameState = GameState.game;
+          if (currentPageType == PageType.pause) {
             buttonText = 'Continue';
-          } else if (currentGameState == GameState.game) {
+          } else if (currentPageType == PageType.game) {
             buttonText = '';
           } else {
             buttonText = 'Start';
-            nextGameState = GameState.start;
           }
           return GestureDetector(
             onTap: () {
@@ -109,8 +100,7 @@ class ButtonContainer extends StatelessWidget {
                   },
                 ),
               );
-              bloc.gameStateSubject.add(nextGameState);
-            },
+              BlocProvider.of<MainBloc>(context).add(MainEvent.openGamePage());            },
             child: Container(
               alignment: Alignment.center,
               height: 80,

@@ -1,20 +1,18 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:memo/pages/page_background.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:memo/pages/result_page.dart';
 import 'package:memo/sources/app_images.dart';
-import 'package:provider/provider.dart';
 import 'package:reorderables/reorderables.dart';
+import 'package:rxdart/rxdart.dart';
 
-import '../bloc/bloc.dart';
+import '../bloc/main_bloc.dart';
+import '../enums/page_type.dart';
 import '../models/card_class.dart';
 import '../sources/app_colors.dart';
 import '../sources/grid_values.dart';
-
-bool _isEnableReorderableWrap = false;
 
 class GamePage extends StatefulWidget {
   const GamePage({super.key});
@@ -24,26 +22,28 @@ class GamePage extends StatefulWidget {
 }
 
 class _GamePageState extends State<GamePage> {
-  late StreamSubscription<dynamic> _subscription;
-  late Bloc _bloc;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _bloc = Provider.of<Bloc>(context, listen: false);
-    nextPage();
-  }
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-    return PageBackground(
+    return BlocListener<MainBloc, MainState>(
+      listener: (context, state) {
+        final PageType pageType = state.pageType;
+        if (pageType == PageType.nextLevel || pageType == PageType.win) {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  ResultPage(),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+            ),
+          );
+        }
+      },
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
@@ -53,7 +53,7 @@ class _GamePageState extends State<GamePage> {
             SizedBox(width: 40),
             BackButton(
               onPressed: () {
-                bloc.gameStateSubject.add(GameState.pause);
+                BlocProvider.of<MainBloc>(context).add(MainEvent.pauseGame());
                 Navigator.pop(context);
               },
               color: Colors.white,
@@ -70,27 +70,6 @@ class _GamePageState extends State<GamePage> {
         body: _GamePageContent(),
       ),
     );
-  }
-
-  void nextPage() {
-    _subscription = _bloc.gameStateSubject.listen((gameState) {
-      if (gameState == GameState.newLevel || gameState == GameState.win) {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                ResultPage(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-          ),
-        );
-      }
-    });
   }
 }
 
@@ -114,17 +93,13 @@ class _GamePageContentState extends State<_GamePageContent> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: SizedBox(
-                height: 522, width: 348, child: GridViewStreamsWrapped()),
+                height: 490, width: 348, child: _ReorderableWrapWidget()),
           ),
-          ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _isEnableReorderableWrap = !_isEnableReorderableWrap;
-                });
-              },
-              child: _isEnableReorderableWrap
-                  ? Text('stop')
-                  : Text('Drag and drop'))
+          DragAndDropButton(),
+          Spacer(),
+          SizedBox(
+            height: 10,
+          )
         ],
       ),
     );
@@ -138,7 +113,6 @@ class StringLevelContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
     return Padding(
       padding: padding,
       child: Container(
@@ -149,17 +123,15 @@ class StringLevelContainer extends StatelessWidget {
             border: Border.all(
                 color: AppColors.levelContainerColorBackground, width: 1),
             borderRadius: BorderRadius.circular(77)),
-        child: StreamBuilder<String>(
-            stream: bloc.stringLevelContainerSubject,
-            builder: (context, snapshot) {
-              if (!snapshot.hasData || snapshot.data == null) {
-                return SizedBox.shrink();
-              }
-              return Text(
-                snapshot.data!.toUpperCase(),
-                style: Theme.of(context).textTheme.labelLarge,
-              );
-            }),
+        child: BlocBuilder<MainBloc, MainState>(builder: (context, state) {
+          return Text(
+            "Q${state.level}/${state.maxLevel}".toUpperCase(),
+            style: Theme
+                .of(context)
+                .textTheme
+                .labelLarge,
+          );
+        }),
       ),
     );
   }
@@ -170,89 +142,60 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-    return StreamBuilder<List<double>>(
-        stream: bloc.progressBarStateListSubject,
-        builder: (context, snapshot) {
-          if (snapshot.data == null || !snapshot.hasData)
-            return SizedBox.shrink();
-          List<double> values = snapshot.data!;
-          return LinearProgressIndicator(
-            minHeight: 15,
-            value: (values[0] - 0.1) / values[1],
-            valueColor: AlwaysStoppedAnimation<Color>(_isEnableReorderableWrap
-                ? AppColors.progressBarColorValueFreezed
-                : AppColors.progressBarColorValue),
-            backgroundColor: AppColors.progressBarColorBackground,
-            borderRadius: BorderRadius.circular(110),
-          );
-        });
-  }
-}
-
-class GridViewStreamsWrapped extends StatefulWidget {
-  const GridViewStreamsWrapped({super.key});
-
-  @override
-  State<GridViewStreamsWrapped> createState() => _GridViewStreamsWrappedState();
-}
-
-class _GridViewStreamsWrappedState extends State<GridViewStreamsWrapped> {
-  @override
-  Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-
-    return StreamBuilder(
-        stream: bloc.gridTypeSubject,
-        builder: (context, snapshot) {
-          int intGridType = snapshot.data ?? 0;
-          return StreamBuilder<List<CardClass>>(
-              stream: bloc.gameFieldSubject,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data == null) {
-                  return SizedBox.shrink();
-                }
-                List<CardClass> listOfCards = snapshot.data!;
-                return _ReorderableWrapWidget(
-                    listOfCards: listOfCards, intGridType: intGridType);
-              });
-        });
+    return BlocBuilder<MainBloc, MainState>(builder: (context, state) {
+      return LinearProgressIndicator(
+        minHeight: 15,
+        value: (state.level - 0.1) / state.maxLevel,
+        valueColor: AlwaysStoppedAnimation<Color>(state.isEnableDragAndDrop
+            ? AppColors.progressBarColorValueFreezed
+            : AppColors.progressBarColorValue),
+        backgroundColor: AppColors.progressBarColorBackground,
+        borderRadius: BorderRadius.circular(110),
+      );
+    });
   }
 }
 
 class _ReorderableWrapWidget extends StatefulWidget {
-  final int intGridType;
-  final List<CardClass> listOfCards;
-
-  const _ReorderableWrapWidget(
-      {super.key, required this.listOfCards, required this.intGridType});
+  const _ReorderableWrapWidget({super.key});
 
   @override
   State<_ReorderableWrapWidget> createState() => _ReorderableWrapWidgetState();
 }
 
 class _ReorderableWrapWidgetState extends State<_ReorderableWrapWidget> {
-
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-    return ReorderableWrap(
-        enableReorder: _isEnableReorderableWrap,
-        scrollPhysics: const NeverScrollableScrollPhysics(),
-        spacing: _listOfGridValues[widget.intGridType].crossAxisSpacing,
-        runSpacing: _listOfGridValues[widget.intGridType].mainAxisSpacing,
-        children: List.generate(widget.listOfCards.length, (index) {
-          return AnimatedFlipWrapper(
-              key: ValueKey<String>(widget.listOfCards[index].id),
-              card: widget.listOfCards[index],
-              cardSize: _listOfGridValues[widget.intGridType].cardSize,
-              imagePadding: _listOfGridValues[widget.intGridType].imagePadding);
-        }),
-        onReorder: ((oldIndex, newIndex) {
-          final item = widget.listOfCards.removeAt(oldIndex);
-          widget.listOfCards.insert(newIndex, item);
-          bloc.gameFieldSubject.add(widget.listOfCards);
-        }));
+    return BlocBuilder<MainBloc, MainState>(
+      builder: (context, state) {
+        if (state.pageType != PageType.game) {
+          return SizedBox.shrink();
+        }
+        List<CardClass> _listOfCards = List.from(state.gameField);
+        final int gridTypeIndex = state.gridTypeIndex;
+        return ReorderableWrap(
+            enableReorder: state.isEnableDragAndDrop,
+            scrollPhysics: const NeverScrollableScrollPhysics(),
+            spacing: _listOfGridValues[gridTypeIndex].crossAxisSpacing,
+            runSpacing: _listOfGridValues[gridTypeIndex].mainAxisSpacing,
+            children: List.generate(_listOfCards.length, (index) {
+              return CardFlipWidget(
+                  key: ValueKey<String>(_listOfCards[index].id),
+                  card: _listOfCards[index],
+                  cardSize: _listOfGridValues[gridTypeIndex].cardSize,
+                  imagePadding: _listOfGridValues[gridTypeIndex].imagePadding);
+            }),
+            onReorder: ((oldIndex, newIndex) {
+              final item = _listOfCards.removeAt(oldIndex);
+
+              setState(() {
+                _listOfCards.insert(newIndex, item);
+              });
+              BlocProvider.of<MainBloc>(context)
+                  .add(MainEvent.updateGameFieldByGrid(_listOfCards));
+            }));
+      },
+    );
   }
 
   List<GridValue> _listOfGridValues = [
@@ -277,59 +220,69 @@ class _ReorderableWrapWidgetState extends State<_ReorderableWrapWidget> {
   ];
 }
 
-class AnimatedFlipWrapper extends StatefulWidget {
+class CardFlipWidget extends StatefulWidget {
   final CardClass card;
   final bool imagePadding;
   final Size cardSize;
 
-  const AnimatedFlipWrapper(
-      {super.key, required this.card, required this.imagePadding, required this.cardSize});
+  const CardFlipWidget({super.key,
+    required this.card,
+    required this.imagePadding,
+    required this.cardSize});
 
   @override
-  State<AnimatedFlipWrapper> createState() => _AnimatedFlipWrapperState();
+  State<CardFlipWidget> createState() => _CardFlipWidgetState();
 }
 
-class _AnimatedFlipWrapperState extends State<AnimatedFlipWrapper> {
+class _CardFlipWidgetState extends State<CardFlipWidget> {
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
     final CardClass card = widget.card;
-
-    return AnimatedFlip(
-      cardBack: Container(
-        height: widget.cardSize.height,
-        width: widget.cardSize.width,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-            color: Colors.transparent,
-            border: Border.all(width: 4, color: Colors.white),
-            borderRadius: BorderRadius.circular(15)),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(11),
-          child: Image.asset(
-            card.content,
-            fit: BoxFit.cover,
-          ),
-        ),
-      ),
-      cardFace:
-          FaceCardWidget(size: widget.cardSize, imagePadding: widget.imagePadding),
-      isFace: (card.isFace || _isEnableReorderableWrap),
-      onTap: () async {
-        if (!card.isGuessed && !card.isFace) {
-
-          addToBloc(bloc: bloc);
+    return BlocListener<MainBloc, MainState>(
+      listener: (context, state) async {
+        int currentCount = state.listOfSelectedCards.length;
+        if (currentCount == 2) {
+          await Future.delayed(Duration(seconds: 1));
+          if (mounted) {
+            BlocProvider.of<MainBloc>(context)
+                .add(MainEvent.checkIsCompareOrNextLevel());
+          }
         }
       },
+      child: BlocBuilder<MainBloc, MainState>(builder: (context, state) {
+        return AnimatedFlip(
+          cardBack: Container(
+            height: widget.cardSize.height,
+            width: widget.cardSize.width,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: Colors.transparent,
+                border: Border.all(width: 4, color: Colors.white),
+                borderRadius: BorderRadius.circular(15)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(11),
+              child: Image.asset(
+                card.content,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          cardFace: FaceCardWidget(
+              size: widget.cardSize, imagePadding: widget.imagePadding),
+          isFace: (card.isFace || state.isEnableDragAndDrop),
+          onTap: () async {
+            if (!card.isGuessed && !card.isFace) {
+              BlocProvider.of<MainBloc>(context)
+                  .add(MainEvent.addCard(widget.card));
+            }
+          },
+        );
+      }),
     );
-  }
-
-  void addToBloc({required Bloc bloc}) async {
-    bloc.playerSelectedCardSubject.add(widget.card.flipCard());
   }
 }
 
-class AnimatedFlip extends StatelessWidget {
+class AnimatedFlip extends StatefulWidget {
   final Widget cardBack;
   final Widget cardFace;
   final VoidCallback onTap;
@@ -344,21 +297,36 @@ class AnimatedFlip extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: TweenAnimationBuilder(
-        duration: const Duration(milliseconds: 700),
-        curve: Curves.easeOut,
-        tween: Tween<double>(
-            begin: _isEnableReorderableWrap ? 0 : 180, end: isFace ? 0 : 180),
-        builder: (context, value, child) {
-          final content = value < 90
-              ? cardBack
-              : RotationY(rotationY: 180, child: cardFace);
+  State<AnimatedFlip> createState() => _AnimatedFlipState();
+}
 
-          return RotationY(rotationY: value, child: content);
-        },
+class _AnimatedFlipState extends State<AnimatedFlip> {
+  bool _isEnableDragAndDrop = false;
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<MainBloc, MainState>(
+      listener: (context, state) {
+        setState(() {
+          _isEnableDragAndDrop = state.isEnableDragAndDrop;
+        });
+
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: TweenAnimationBuilder(
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOut,
+          tween: Tween<double>(
+              begin: _isEnableDragAndDrop ? 0 : 180,
+              end: widget.isFace ? 0 : 180),
+          builder: (context, value, child) {
+            final content = value < 90
+                ? widget.cardBack
+                : RotationY(rotationY: 180, child: widget.cardFace);
+
+            return RotationY(rotationY: value, child: content);
+          },
+        ),
       ),
     );
   }
@@ -402,6 +370,48 @@ class FaceCardWidget extends StatelessWidget {
             ),
           ),
         ));
+  }
+}
+
+class DragAndDropButton extends StatefulWidget {
+  const DragAndDropButton({super.key});
+
+  @override
+  State<DragAndDropButton> createState() => _DragAndDropButtonState();
+}
+
+class _DragAndDropButtonState extends State<DragAndDropButton> {
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<MainBloc, MainState>(
+      builder: (context, state) {
+        bool _isEnableDragAndDrop = state.isEnableDragAndDrop;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextButton(
+                onPressed: () {
+                  BlocProvider.of<MainBloc>(context)
+                      .add(MainEvent.tapOnDragAndDropButton());
+                },
+                style: ButtonStyle(
+                  backgroundColor:
+                  WidgetStatePropertyAll(Colors.grey.withOpacity(0.13)),
+                  minimumSize: WidgetStatePropertyAll(
+                    Size(65, 65),
+                  ),
+                ),
+                child: Icon(
+                  _isEnableDragAndDrop ? Icons.cancel_outlined : Icons.settings,
+                  size: 25,
+                  color: _isEnableDragAndDrop ? Colors.red : Colors.white,
+                )),
+            SizedBox(height: 9),
+            Text(_isEnableDragAndDrop ? 'Stop' : 'Drag and Drop')
+          ],
+        );
+      },
+    );
   }
 }
 

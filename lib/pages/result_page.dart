@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:memo/components/custom_progressbar.dart';
-import 'package:memo/pages/page_background.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:memo/bloc/main_bloc.dart';
 import 'package:memo/pages/start_page.dart';
-import 'package:provider/provider.dart';
-import 'package:rxdart/rxdart.dart';
 
-import '../bloc/bloc.dart';
+import '../enums/page_type.dart';
 import '../sources/app_colors.dart';
 import 'game_page.dart';
 
@@ -15,7 +13,7 @@ class ResultPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: PageBackground(child: SafeArea(child: _ResultPageContent())),
+      body: SafeArea(child: _ResultPageContent()),
     );
   }
 }
@@ -25,56 +23,54 @@ class _ResultPageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        StreamBuilder<GameState>(
-            stream: bloc.gameStateSubject,
-            builder: (context, snapshot) {
-              GameState currentGame = snapshot.data ?? GameState.newLevel;
-              bool isWin = currentGame == GameState.win;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(height: 53),
-                  _CenterTextWidget(isWin: isWin),
-                  SizedBox(height: 34),
-                  if (isWin) _CardWidget(),
-                  Spacer(),
-                  isWin
-                      ? ButtonContainer(
-                          text: "Menu",
-                          onTap: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder:
-                                    (context, animation, secondaryAnimation) =>
-                                        StartPage(),
-                                transitionsBuilder: (context, animation,
-                                    secondaryAnimation, child) {
-                                  return FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  );
-                                },
-                              ),
-                              (route) => false,
-                            );
-                          },
-                        )
-                      : ButtonContainer(
-                          text: 'Next',
-                          onTap: () {
-                            bloc.gameStateSubject.add(GameState.game);
-                            Navigator.pop(context);
-                          },
-                        ),
-                ],
-              );
-            }),
+        BlocBuilder<MainBloc, MainState>(builder: (context, state) {
+          bool isWin = (state.pageType == PageType.win);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(height: 53),
+              _CenterTextWidget(isWin: isWin),
+              SizedBox(height: 34),
+              if (isWin) _CardWidget(),
+              Spacer(),
+              isWin
+                  ? ButtonContainer(
+                      text: "Menu",
+                      onTap: () {
+                        BlocProvider.of<MainBloc>(context)
+                            .add(MainEvent.restartGame());
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder:
+                                (context, animation, secondaryAnimation) =>
+                                    StartPage(),
+                            transitionsBuilder: (context, animation,
+                                secondaryAnimation, child) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                          ),
+                          (route) => false,
+                        );
+                      },
+                    )
+                  : ButtonContainer(
+                      text: 'Next',
+                      onTap: () {
+                        BlocProvider.of<MainBloc>(context)
+                            .add(MainEvent.startNextLevel());
+                        Navigator.pop(context);
+                      },
+                    ),
+            ],
+          );
+        }),
       ],
     );
   }
@@ -87,8 +83,6 @@ class _CenterTextWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-
     return isWin
         ? Text(
             '👑\nYou\nWin!'.toUpperCase(),
@@ -99,66 +93,63 @@ class _CenterTextWidget extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 fontFamily: 'Noir-pro-semi-bold-italic'),
           )
-        : StreamBuilder<int>(
-            stream: bloc.gameLevelSubject,
-            builder: (context, snapshot) {
-              String levelString = "";
-              if (snapshot.data == null || !snapshot.hasData) {
-                levelString = '';
-              } else {
-                levelString = "${snapshot.data! - 1}" ?? '';
-              }
-              return Text(
-                '$levelString Level\ncomplite\n\🔥🔥🔥🔥🔥'.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: AppColors.textLogoOnStartPage,
-                    fontSize: 46.66,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Noir-pro-semi-bold-italic'),
-              );
-            });
+        : BlocBuilder<MainBloc, MainState>(builder: (context, state) {
+            String levelString = "";
+            levelString = "${state.level}";
+            return Text(
+              '$levelString Level\ncomplite\n\🔥🔥🔥🔥🔥'.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: AppColors.textLogoOnStartPage,
+                  fontSize: 46.66,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Noir-pro-semi-bold-italic'),
+            );
+          });
   }
 }
-
 
 class _CardWidget extends StatelessWidget {
   const _CardWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final Bloc bloc = Provider.of<Bloc>(context, listen: false);
-
-    return Card(
-      color: Colors.white.withOpacity(0.13),
-      elevation: 1,
-      child: SizedBox(
-        width: 250,
-        height: 300,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _CardStatistics(
-              label: 'Playing time:',
-              stream: bloc.listStringFormattedPlayingDate,
+    return BlocBuilder<MainBloc, MainState>(
+      builder: (context, state) {
+        return Card(
+          color: Colors.white.withOpacity(0.13),
+          elevation: 1,
+          child: SizedBox(
+            width: 250,
+            height: 300,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _CardStatistics(
+                  label: 'Playing time:',
+                  listOfStatistics: state.playerTimeStatistics,
+                ),
+                SizedBox(height: 20),
+                _CardStatistics(
+                  label: 'Statistics:',
+                  listOfStatistics: state.playerGameStatistics,
+                )
+              ],
             ),
-            SizedBox(height: 20),
-            _CardStatistics(
-                stream: bloc.playerStatisticsSubject,
-                label: 'Statistics:')
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _CardStatistics extends StatelessWidget {
   final String label;
-  final BehaviorSubject<List<String>> stream;
+  final List<String> listOfStatistics;
 
-  const _CardStatistics({super.key, required this.stream, required this.label});
+  const _CardStatistics(
+      {super.key, required this.label, required this.listOfStatistics});
 
   @override
   Widget build(BuildContext context) {
@@ -180,24 +171,14 @@ class _CardStatistics extends StatelessWidget {
         SizedBox(
           height: 5,
         ),
-        StreamBuilder<List<String>>(
-            stream: stream,
-            builder: (context, snapshot) {
-              if (snapshot.data == null || !snapshot.hasData) {
-                return SizedBox.shrink();
-              }
-              List<String> textsList = snapshot.data!;
-
-              return Column(
-                  children: List.generate(textsList.length, (index) {
-                return Text(
-                  textsList[index],
-                  style: TextStyle(
-                      color: Colors.white70,
-                      fontFamily: 'Noir-pro-semi-bold-italic'),
-                );
-              }));
-            }),
+        Column(
+            children: List.generate(listOfStatistics.length, (index) {
+          return Text(
+            listOfStatistics[index],
+            style: TextStyle(
+                color: Colors.white70, fontFamily: 'Noir-pro-semi-bold-italic'),
+          );
+        }))
       ],
     );
   }

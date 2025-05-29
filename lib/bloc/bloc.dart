@@ -3,7 +3,7 @@ import 'package:memo/models/memo_class.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/card_class.dart';
 
-class Bloc {
+class Blocc {
   BehaviorSubject<int> gameLevelSubject = BehaviorSubject.seeded(1);
   BehaviorSubject<List<CardClass>> gameFieldSubject = BehaviorSubject();
   BehaviorSubject<GameState> gameStateSubject =
@@ -28,7 +28,7 @@ class Bloc {
 
   final MemoClass memo = MemoClass();
 
-  Bloc() {
+  Blocc() {
     _gameStateSubscription = gameStateSubject.listen((gameState) {
       if (gameState == GameState.start) {
         restartStatistics();
@@ -38,7 +38,6 @@ class Bloc {
         winGame();
       }
       if(gameState == GameState.newLevel){
-        print('ну уровень то следующий');
         nextLevel();
       }
     });
@@ -100,7 +99,6 @@ class Bloc {
     }
   }
 
-  //Реализация логики memo
   List<CardClass> listOfSelectedCard = [];
   BehaviorSubject<bool> isWaitingSubject = BehaviorSubject.seeded(false);
 

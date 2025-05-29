@@ -4,9 +4,7 @@ import '../sources/app_colors.dart';
 import '../sources/app_images.dart';
 
 class PageBackground extends StatelessWidget {
-  final Widget child;
-
-  const PageBackground({super.key, required this.child});
+  const PageBackground({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +22,6 @@ class PageBackground extends StatelessWidget {
               opacity: 0.2,
               child: Image.asset(AppImages.pattern),
             ),
-            child,
           ],
         ));
   }
