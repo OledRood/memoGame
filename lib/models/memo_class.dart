@@ -1,6 +1,5 @@
 import 'package:uuid/uuid.dart';
 
-import '../bloc/bloc.dart';
 import '../sources/app_images.dart';
 import 'card_class.dart';
 
@@ -9,6 +8,11 @@ class MemoClass {
     final Uuid uuid = Uuid();
 
     int elementCount = 6 * difficulty;
+
+    //TODO вернуть
+    elementCount = 6 ;
+
+
     if (elementCount % 2 != 0) {
       elementCount -= 1;
     }

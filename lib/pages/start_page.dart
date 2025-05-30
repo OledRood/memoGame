@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:memo/pages/game_page.dart';
 
 import '../bloc/main_bloc.dart';
@@ -86,20 +87,7 @@ class ButtonContainer extends StatelessWidget {
           }
           return GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      GamePage(),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: child,
-                    );
-                  },
-                ),
-              );
+              context.push('/gamePage');
               BlocProvider.of<MainBloc>(context).add(MainEvent.openGamePage());            },
             child: Container(
               alignment: Alignment.center,

@@ -17,7 +17,7 @@ class MainState with _$MainState {
   factory MainState.initial() => MainState(
         level: 1,
         gameField: [],
-        maxLevel: 3,
+        maxLevel: 2,
         gridTypeIndex: 0,
         pageType: PageType.start,
         playerTimeStatistics: [],

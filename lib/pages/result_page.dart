@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:memo/bloc/main_bloc.dart';
 import 'package:memo/pages/start_page.dart';
 
 import '../enums/page_type.dart';
 import '../sources/app_colors.dart';
-import 'game_page.dart';
 
 class ResultPage extends StatelessWidget {
   const ResultPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       body: SafeArea(child: _ResultPageContent()),
     );
   }
@@ -31,33 +31,18 @@ class _ResultPageContent extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(height: 53),
+              const SizedBox(height: 53),
               _CenterTextWidget(isWin: isWin),
-              SizedBox(height: 34),
-              if (isWin) _CardWidget(),
-              Spacer(),
+              const SizedBox(height: 34),
+              if (isWin) const _CardWidget(),
+              const Spacer(),
               isWin
                   ? ButtonContainer(
                       text: "Menu",
                       onTap: () {
                         BlocProvider.of<MainBloc>(context)
                             .add(MainEvent.restartGame());
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder:
-                                (context, animation, secondaryAnimation) =>
-                                    StartPage(),
-                            transitionsBuilder: (context, animation,
-                                secondaryAnimation, child) {
-                              return FadeTransition(
-                                opacity: animation,
-                                child: child,
-                              );
-                            },
-                          ),
-                          (route) => false,
-                        );
+                        context.go('/startPage');
                       },
                     )
                   : ButtonContainer(
@@ -65,7 +50,7 @@ class _ResultPageContent extends StatelessWidget {
                       onTap: () {
                         BlocProvider.of<MainBloc>(context)
                             .add(MainEvent.startNextLevel());
-                        Navigator.pop(context);
+                        context.pop();
                       },
                     ),
             ],
@@ -130,7 +115,7 @@ class _CardWidget extends StatelessWidget {
                   label: 'Playing time:',
                   listOfStatistics: state.playerTimeStatistics,
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 _CardStatistics(
                   label: 'Statistics:',
                   listOfStatistics: state.playerGameStatistics,

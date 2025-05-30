@@ -6,6 +6,7 @@ import 'package:memo/models/memo_class.dart';
 
 import '../enums/page_type.dart';
 import '../models/card_class.dart';
+import '../models/statistics_class.dart';
 
 part 'main_event.dart';
 
@@ -33,7 +34,9 @@ class MainBloc extends Bloc<MainEvent, MainState> {
 
   List<CardClass> savedGameField = [];
 
+
   final MemoClass memo = MemoClass();
+  final Statistics statistics = Statistics();
 
   FutureOr<void> _onOpenGamePage(Emitter<MainState> emit) async {
     PageType currentPageType = state.pageType;
@@ -46,6 +49,7 @@ class MainBloc extends Bloc<MainEvent, MainState> {
   FutureOr<void> _onAddCard(CardClass selectedCard,
       Emitter<MainState> emit,) async {
     if (state.listOfSelectedCards.length < 2) {
+      statistics.addMove();
       selectedCard = selectedCard.flipCard();
       List<CardClass> gameField = state.gameField.map((currentCard) {
         if (currentCard.id == selectedCard.id) {
@@ -87,7 +91,7 @@ class MainBloc extends Bloc<MainEvent, MainState> {
       );
       if (memo.isNextLevel(gameField: gameField)) {
         if (state.level == state.maxLevel) {
-          emit(state.copyWith(pageType: PageType.win, listOfSelectedCards: []));
+          winGame();
         } else {
           emit(state
               .copyWith(pageType: PageType.nextLevel, listOfSelectedCards: []));
@@ -103,7 +107,9 @@ class MainBloc extends Bloc<MainEvent, MainState> {
   }
 
   void _startGame() async {
+    statistics.resetAllDate();
     List<CardClass> newGameField = memo.generateFieldList(difficulty: 1);
+    statistics.setStartTimeDate();
     emit(state.copyWith(
       level: 1,
       gameField: newGameField,
@@ -118,7 +124,8 @@ class MainBloc extends Bloc<MainEvent, MainState> {
   }
 
   void winGame() {
-    emit(state.copyWith(pageType: PageType.win));
+    statistics.setStopTimeDate();
+    emit(state.copyWith(pageType: PageType.win, playerTimeStatistics: statistics.getFormattedPlayingTime(), playerGameStatistics: statistics.getFormattedPlayerStatistics(), listOfSelectedCards: []));
   }
 
   FutureOr<void> _onRestartGame(Emitter<MainState> emit) {
@@ -127,6 +134,7 @@ class MainBloc extends Bloc<MainEvent, MainState> {
 
   FutureOr<void> _onTapDragAndDropButton(Emitter emit) {
     bool newStatusEnable = !state.isEnableDragAndDrop;
+
     if (newStatusEnable) {
       savedGameField = List.from(state.gameField);
       List<CardClass> flippedGameField = state.gameField.map((card) {
@@ -152,4 +160,8 @@ class MainBloc extends Bloc<MainEvent, MainState> {
 
     }
   }
+
+
+
+
 }

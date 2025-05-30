@@ -5,14 +5,17 @@ class AppTheme {
 
   static ThemeData get lightTheme => ThemeData.light().copyWith(
         scaffoldBackgroundColor: Colors.transparent,
-
         textTheme: const TextTheme(
-            bodyLarge: TextStyle(color: Colors.white, fontSize: 20, fontFamily: primaryFontFamily),
-            labelLarge: TextStyle(color: Colors.white, fontSize: 22, fontFamily: primaryFontFamily, fontWeight: FontWeight.w400, //Q1/10
-
-            )
-        ),
-
+            bodyLarge: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontFamily: primaryFontFamily),
+            labelLarge: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontFamily: primaryFontFamily,
+              fontWeight: FontWeight.w400, //Q1/10
+            )),
         textButtonTheme: TextButtonThemeData(style: ButtonStyle(backgroundColor:
             WidgetStateProperty.resolveWith((Set<WidgetState> state) {
           if (state.contains(WidgetState.pressed)) {
